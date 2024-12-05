@@ -1,6 +1,6 @@
 ---
-title: How To Persist Manual Configurations In Kind
-subtitle: for when leaving a test cluster up is a luxury
+title: Manual Configurations In Kind
+subtitle: For when leaving a test cluster up is a luxury
 ---
 
 <section>
