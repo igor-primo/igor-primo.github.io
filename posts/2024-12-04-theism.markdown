@@ -1,5 +1,6 @@
 ---
-title: Sketch of A Common-Sense Argument For Theism
+title: An Argument For Theism
+subtitle: Or why common sense leads to theism
 ---
 
 <section>
@@ -70,7 +71,7 @@ either.
 This is how things are. This note also shows that careful orchestration
 of science experiments is of paramount importance for science.
 
-### Not an argument by ignorance. The meaning problem.
+### Not an argument by ignorance and the meaning problem.
 
 I say this not to vindicate any argument by ignorance. I think both
 atheist and theists are often guilty of ignorance of what I just said.
