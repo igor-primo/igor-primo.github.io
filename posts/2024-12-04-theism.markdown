@@ -8,9 +8,9 @@ title: Sketch of A Common-Sense Argument For Theism
 
 ### The logic problem
 
-Most theists and atheists will rely on analytic/deductive
-arguments and strategies to make their point in discussions
-about the existence of divinity. These strategies are inconclusive.
+Most theists and atheists will rely on analytic/deductive arguments and
+strategies to make their point in discussions about the existence of divinity.
+These strategies have lead all of us to inconclusive results.
 
 All mathematical theories start by setting axioms, which
 are thought to be self-evident truths that need no demonstration.
@@ -96,7 +96,7 @@ only so much, moderating His anger with acts of mercy. If the atheist finds
 this strange, it is for him to grow in culture and as a person. In any case,
 reality is a harsh teacher and will not succumb to our concepts. **We** should
 adapt our concepts to reality. If God is good while punishing his creatures
-for their offenses, thinking He is bad does not change reality if reality is so.
+for their offenses, thinking He is bad does not change reality.
 
 The difficulty of tracking reality, together with the inconclusiveness of
 individual human experience, gives room to all sorts of arbitrariness.
@@ -107,5 +107,72 @@ This, I think is why there are so many and so strange opinions in currency today
 <section>
 
 ## A better approach: common-sense
+
+How, then, can we reduce the quantity of arbitrariness in our opinions?  I think
+that clarity about the process of human knowing and a desire to track reality,
+coupled with logical acuity, is the way to reduce the quantity of arbitrariness
+in our opinions. To seek to know the process by which humans come to learn what
+they learn may free us from some inherited preconceived ideas about what
+rationality is and about what are its commitments.
+
+### The role of community
+
+Humans are not born with innate ideas. Not even our logical perspicuity is
+inherit in us. Rather, it is the fruit of training. By the time a child reaches
+its age of reason, the child has learned a few factual propositions, and not
+only this, but also and ability to detect contradictions. This ability is a
+mystery, so far as I know. Each one can only judge by his or her own experience
+of understanding a proposition and verifying it by experience; there is a click
+in the mind, a light is shone upon us intellectually, and we say the proposition
+is true. A false proposition, however, bears with it a sense of intellectual
+darkness. A child may not be able to put it to words like that, but the child
+sees this and this is clear to us all.  However, we are quick to disregard the
+process by which a child comes to its realizations.
+
+A child does not go about making speculations about things and then inductively
+producing hypothesis to be tested. A child first learns to associate words with
+images, memories and then concepts. After that, when the child has dominion over
+concepts, which is verified by dominion over language, a child receives
+propositions from the community and accepts them without question. In the
+circumstances of a child, this is reasonable; for a child has not enough logic
+training to test consistency of handed down information, nor can a child be in
+all places to verify what the child is told.
+
+All humans possess 3 sources of knowledge: observation, memory and testimony.
+It is a characteristic of our individualistic times to make heroes out of people
+who reject community and rely on their resources. Here lies a very dark cultural
+predicament which has drown modern man. For, like a child, a man cannot be in
+all places, to verify what he is told, nor does he have time to deduce vast sets
+of propositions from the little that he knows by observation and memory. Most of what
+he knows from school he did not verify either by deduction or experimentation;
+most of what informs his practical reasonings is not even attentively
+considered. His beliefs 
+<label for="sn-beliefs-unchallenged"
+       class="margin-toggle sidenote-number">
+</label>
+<input type="checkbox"
+       id="sn-beliefs-unchallenged"
+       class="margin-toggle"/>
+<span class="sidenote">
+This holds true for all. Several theists do not test the beliefs they inherited
+from family. Several atheists, who begin by becoming practical atheists motivated
+by pride, do not challenge, at least adequately, their excessive skepticism.
+</span>
+often result from trauma not everyone suffers, or still
+are from handed down family traditions that he did not have the *interest* to revisit and challenge. 
+
+By pride, he may not recognize his need for the *observation of others*.  The
+very fact that large quantities of humans, even those who profess intellectual
+carreers, cannot see the illogicality of this rebellion is proof that ***against
+pride not even logic will do***.
+
+This predicament is at the same time risible and scary. Most men and women live
+like fools, praising intellectual ideals that they cannot live up to.  It is
+also scary, for we, and our children, depend on people enchanted by this
+illusion.
+
+### Deceit proves the point further
+
+
 
 </section>
