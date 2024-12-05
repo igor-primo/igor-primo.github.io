@@ -6,7 +6,16 @@ title: Contact
 
 <section>
 
-I live in a small hut in the mountains of Kumano Kodō on Kii Hantō and would not
-like to be contacted.
+<p>
+    I am open for suggestions, opinions and proposals. I will be happy to
+    cooperate with you.
+</p>
+
+<p>
+    I prefer to be reached at my e-mail
+    <address>
+        <a href="mailto:igorprimo62@gmail.com">igorprimo62@gmail.com</a>
+    </address>
+</p>
 
 </section>

@@ -1,0 +1,483 @@
+---
+title: How To Persist Manual Configurations In Kind
+subtitle: for when leaving a test cluster up is a luxury
+---
+
+<section>
+
+## The problem
+
+There are occasions when simply pruning a 'values.yaml' file to remove unnecessary
+applications for your Kind k8s local test is not sufficient. On a resource
+restricted machine leaving a local test cluster up while doing other dev chores,
+using a web browser, or simply playing around in one's computer, is not even
+bearable.  This poses a problem for application manual configuration applied
+while testing it, such as creating users on the fly in your app, which will be
+destroyed upon cluster teardown.
+
+The solution, similar to the ones you may have heard
+<label for="sn-heard-production"
+       class="margin-toggle sidenote-number">
+</label>
+<input type="checkbox"
+       id="sn-heard-production"
+       class="margin-toggle"/>
+<span class="sidenote">
+    I mean, Persistent Volumes, the API object that captures the details of the
+    implementation of storage, which can be NFS, iSCSI or some specific cloud
+    provider storage service.
+</span>
+for production clusters,
+is to make your pods' storages point to another storage not dependent on the
+cluster's existence. On the condition of a resource restricted machine, however,
+these production-like solutions might not do. Let's investigate an alternative,
+lightweight solution.
+
+</section>
+
+<section>
+
+## Understanding the situation
+
+A description of the situation follows. We use Kind to orchestrate containers on
+top of 3 containers, each of which plays the role of a node in our cluster, run
+by Docker. Kind installs Kubernetes in these 3 containers, 2 of which are
+workers and will run 'kubelet'.
+
+Upon creation of the pods we declare, PVCs are also created, which claim their
+respective dynamically created PVs. These PVCs sit in a directory inside the
+worker nodes where the respective pods reside. The issue now seems a bit more
+clear. Docker containers are effemeral. If so, these PVCs will not survive
+cluster teardowns.
+
+Let's say our Kind configuration is sung like this:
+<span class="marginnote">
+This configuration is taken from a self-learning hobby project I made, in an attempt
+to learn GitFlow. So it was quite complete, involving setting up a container image registry,
+a source version control software and Jenkins.
+</span>
+
+<span class="marginnote">
+
+</span>
+
+<span class="marginnote">
+So, this explains the localhost Harbor configuration, and the TLS skip
+you should never do in production.
+</span>
+
+<pre>
+<code>
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+- role: worker
+- role: worker
+containerdConfigPatches:
+  - |
+    [plugins."io.containerd.grpc.v1.cri."registry.mirrors."harbor.localhost.com"]
+      endpoint = ["https://harbor.localhost.com"]
+    [plugins."io.containerd.grpc.v1.cri."registry.configs]
+      [plugins."io.containerd.grpc.v1.cri."registry.configs."harbor.localhost.com".tls]
+        insecure_skip_verify = true
+
+    
+</code>
+</pre>
+
+Suppose we are releasing a Gitea instance, configured like this in our helmfile.yaml:
+
+<pre>
+<code>
+...
+
+- name: gitea
+  namespace: gitea
+  createNamespace: true
+  chart: gitea/gitea
+  version: 10.1.1
+  values:
+    - values/gitea/values.yaml
+
+...
+
+</code>
+</pre>
+
+We can wait until we have a working instance by running...
+
+<pre>
+<code>
+% watch kubectl get pod -n gitea
+...
+NAME                                          READY   STATUS    RESTARTS   AGE
+gitea-5fd6ccd9f9-4hmvp                        1/1     Running   0          2m22s
+gitea-postgresql-ha-pgpool-6485454559-spj6d   1/1     Running   0          2m22s
+gitea-postgresql-ha-postgresql-0              1/1     Running   0          2m22s
+gitea-postgresql-ha-postgresql-1              1/1     Running   0          2m22s
+gitea-postgresql-ha-postgresql-2              1/1     Running   0          2m22s
+
+</code>
+</pre>
+
+...and inspecting the worker nodes the following way...
+
+<pre>
+<code>
+% docker ps --format=json | jq '[.Names, .ID]'
+...
+[
+  "kind-control-plane",
+  "0d71f246fd69"
+]
+[
+  "kind-worker",
+  "2cd7e78b696a"
+]
+[
+  "kind-worker2",
+  "9b4c172d8b13"
+]
+...
+% docker exec -it 2cd sh -c 'ls /var/local-path-provisioner'
+...
+pvc-649ac59a-5c7b-4b00-9e37-d99d44571ab3_gitea_data-gitea-postgresql-ha-postgresql-2
+pvc-90a3f53a-b9f4-4ea1-85a1-7b19b9fa0ab1_gitea_data-gitea-postgresql-ha-postgresql-0
+...
+% docker exec -it 9b4 sh -c 'ls /var/local-path-provisioner'
+...
+pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1
+pvc-a247f26e-26b5-4ec5-9d3b-6b51569319ab_gitea_gitea-shared-storage
+
+</code>
+</pre>
+
+...we catch these little worms preparing some trouble.
+
+These are the PVCs where the data the containers in the pod use.  In fact, we
+can verify this a little further by running an incantation like...
+
+<pre>
+<code>
+% docker exec -it 9b4 sh -c 'apt update -y && apt install -y file && find /var/local-path-provisioner/ -type f -exec file '{}' \;'
+...
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/postmaster.pid: ASCII text
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/backup_label.old: ASCII text
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/postmaster.opts: ASCII text
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/pg_xact/0000: International EBCDIC text, with very long lines (311), with NEL line terminators
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/pg_ident.conf: ASCII text
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/PG_VERSION: ASCII text
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/postgresql.auto.conf: ASCII text
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/pg_subtrans/0000: data
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/pg_wal/000000010000000000000006: data
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/pg_wal/archive_status/000000010000000000000007.done: empty
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/pg_wal/archive_status/000000010000000000000006.done: empty
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/pg_wal/000000010000000000000005: DIY-Thermocam raw data (Lepton 3.x), scale 16-134, spot sensor temperature 0.000000, unit celsius, color scheme 0, calibration: offset 0.000000, slope 4.187508
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/pg_wal/000000010000000000000007: data
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/pg_wal/000000010000000000000008: data
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/pg_multixact/members/0000: data
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/pg_multixact/offsets/0000: data
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/base/16387/3394_vm: data
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/base/16387/3575: data
+/var/local-path-provisioner/pvc-1a98a042-7ce9-4c89-b588-5edb8f16c1b2_gitea_data-gitea-postgresql-ha-postgresql-1/data/base/16387/2833: data
+...
+
+</pre>
+</code>
+
+Now, let's teardown our cluster and inspect the hashes.
+
+<pre>
+<code>
+% docker ps --format=json | jq '[.Names, .ID]'
+...
+[
+  "kind-worker2",
+  "7dbffcf0e4ea"
+]
+[
+  "kind-worker",
+  "f0bb7e95efe6"
+]
+[
+  "kind-control-plane",
+  "4f62bd1e35b0"
+]
+...
+% docker exec -it f0bb sh -c 'ls /var/local-path-provisioner'
+...
+pvc-1e3a7684-8efc-444d-baad-9c3824ecafad_gitea_data-gitea-postgresql-ha-postgresql-0
+pvc-9e8d077a-10d8-418d-bbfc-995dc1a4c9df_gitea_gitea-shared-storage
+
+</code>
+</pre>
+
+An then, we can verify that the hashes changed. The storages were destroyed and
+recreated, leaving us with the responsibility to recreate our manual
+configuration.
+
+</section>
+
+<section>
+
+## The solution
+
+The solution consists in creating static Persistent Volumes and static
+Persistent Volume Claims, which guarantee their identification across cluster
+teardowns; and also, the configuration of `persistentVolumeReclaimPolicy` to
+`Retain`, so that the storages can be reclaimed and of `volumeMode` to
+`Filesystem`, so that we can use the host's filesystem to store the PVCs.
+
+We will also need to instruct Kind to mount, in a user provided directory,
+the container directory where the PVCs are stored. For this we will need to create a directory:
+
+<pre>
+<code>
+mkdir .volumes
+</code>
+</pre>
+
+And, then, to modify `config.yaml` like so:
+
+<pre>
+<code>
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+- role: worker
+  extraMounts:
+    - hostPath: .volumes
+      containerPath: /var/local-path-provisioner
+- role: worker
+  extraMounts:
+    - hostPath: .volumes
+      containerPath: /var/local-path-provisioner
+</code>
+</pre>
+
+For the case of data persisted by the very Gitea pod, we can do...
+<span class="marginnote">
+Here, 'gitea-shared-storage' is the default storage claim name configured in its
+values.yaml configuration file.
+</span>
+
+<span class="marginnote">
+
+</span>
+
+<span class="marginnote">
+We need, first, to create the `gitea` namespace and then create the desired
+resources there before deploying Gitea. The resulting manifest needs to be
+applied before helm invocation, using something like `kubectl apply -f
+manifests/gitea-storage.yaml`.
+</span>
+
+<pre>
+<code>
+export FILE="manifests/gitea-storage.yaml"
+
+echo '---' >> $FILE && \
+cat >> $FILE &lt&ltEOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gitea
+EOF
+
+echo '---' >> $FILE && \
+kubectl get pv $(kubectl get pv | grep 'gitea-shared-storage' | awk '{print $1}') -oyaml >> $FILE && \
+echo '---' >> $FILE && \
+kubectl get pvc -n gitea gitea-shared-storage -oyaml >> $FILE
+
+</code>
+</pre>
+
+The resulting file might look like this:
+
+<pre>
+<code>
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gitea
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  annotations:
+    pv.kubernetes.io/provisioned-by: rancher.io/local-path
+  creationTimestamp: "2024-12-05T04:50:16Z"
+  finalizers:
+  - kubernetes.io/pv-protection
+  name: pvc-077c94a5-4826-4bbf-8af6-62ff43bf692a
+  resourceVersion: "997"
+  uid: 5cb33644-41aa-4e21-b56a-0800dd25bc37
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 10Gi
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    name: gitea-shared-storage
+    namespace: gitea
+    resourceVersion: "863"
+    uid: 077c94a5-4826-4bbf-8af6-62ff43bf692a
+  hostPath:
+    path: /var/local-path-provisioner/pvc-077c94a5-4826-4bbf-8af6-62ff43bf692a_gitea_gitea-shared-storage
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - kind-worker2
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: standard
+  volumeMode: Filesystem
+status:
+  lastPhaseTransitionTime: "2024-12-05T04:50:16Z"
+  phase: Bound
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    helm.sh/resource-policy: keep
+    meta.helm.sh/release-name: gitea
+    meta.helm.sh/release-namespace: gitea
+    pv.kubernetes.io/bind-completed: "yes"
+    pv.kubernetes.io/bound-by-controller: "yes"
+    volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+    volume.kubernetes.io/selected-node: kind-worker2
+    volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+  creationTimestamp: "2024-12-05T04:50:08Z"
+  finalizers:
+  - kubernetes.io/pvc-protection
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  name: gitea-shared-storage
+  namespace: gitea
+  resourceVersion: "999"
+  uid: 077c94a5-4826-4bbf-8af6-62ff43bf692a
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+  volumeMode: Filesystem
+  volumeName: pvc-077c94a5-4826-4bbf-8af6-62ff43bf692a
+status:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 10Gi
+  phase: Bound
+
+</code>
+</pre>
+
+    <!-- #path: /var/local-path-provisioner/pvc-077c94a5-4826-4bbf-8af6-62ff43bf692a_gitea_gitea-shared-storage -->
+Which needs to be pruned so as to look like:
+<span class="marginnote">
+Here, we remove labels and annotations that are dynamically merged with the
+pod's configuration and serve purposes of satistfying the application logic, as
+well as other observability data. They have no use in configuration declaration.
+</span>
+
+<span class="marginnote">
+
+</span>
+
+<span class="marginnote">
+Notice the specs
+  `metadata.name`,
+  `spec.hostPath.path`,
+  `spec.persistentVolumeReclaimPolicy`,
+  `spec.volumeName`.
+Notice how they are consistent.
+</span>
+
+<pre>
+<code>
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gitea
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  annotations:
+    pv.kubernetes.io/provisioned-by: rancher.io/local-path
+  name: pvc-gitea-storage
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 10Gi
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    name: gitea-shared-storage
+    namespace: gitea
+  hostPath:
+    path: /var/local-path-provisioner/pvc-gitea-storage
+    type: DirectoryOrCreate
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: standard
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    helm.sh/resource-policy: keep
+    meta.helm.sh/release-name: gitea
+    meta.helm.sh/release-namespace: gitea
+    volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+    volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  name: gitea-shared-storage
+  namespace: gitea
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+  volumeMode: Filesystem
+  volumeName: pvc-gitea-storage
+
+</code>
+</pre>
+
+My Makefile already applies the manifests in `manifests` directory. So a cluster
+recreation automatically applies this config.
+
+Applying the config after a cluster teardown does not have an immediate result.
+For some reason, it is necessary to set appropriate permissions on the created
+directory:
+
+<pre>
+<code>
+chmod ao+w .volumes/pvc-gitea-storage
+</code>
+</pre>
+
+And, now I have persistent manual configurations.
+
+The respective repository can be found [here](https://github.com/igor-primo/gitflow).
+
+</section>
