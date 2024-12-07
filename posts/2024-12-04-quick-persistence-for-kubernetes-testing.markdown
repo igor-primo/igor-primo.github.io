@@ -7,15 +7,16 @@ subtitle: For when leaving a test cluster up is a luxury
 
 ## The problem
 
-There are occasions when simply pruning a 'values.yaml' file to remove unnecessary
-applications for your Kind k8s local test is not sufficient. On a resource
-restricted machine leaving a local test cluster up while doing other dev chores,
-using a web browser, or simply playing around in one's computer, is not even
-bearable.  This poses a problem for application manual configuration applied
-while testing it, such as creating users on the fly in your app, which will be
-destroyed upon cluster teardown.
+Sometimes, simply pruning a `values.yaml` file to remove unnecessary applications
+from your Kind deployed K8s local cluster is not sufficient for a
+straightforward learning flow. On a resource restricted machine, leaving a
+local test cluster up while doing other dev chores, using a web browser, or
+simply playing around in one's computer, is not bearable.  This poses a
+problem for manual configurations applied while testing applications, such as
+creating users on the fly in your app, which will be destroyed upon cluster
+teardown.
 
-The solution, similar to the ones you may have heard
+In circumstances like these, setting up services external
 <label for="sn-heard-production"
        class="margin-toggle sidenote-number">
 </label>
@@ -23,14 +24,21 @@ The solution, similar to the ones you may have heard
        id="sn-heard-production"
        class="margin-toggle"/>
 <span class="sidenote">
-    I mean, Persistent Volumes, the API object that captures the details of the
-    implementation of storage, which can be NFS, iSCSI or some specific cloud
-    provider storage service.
+NFS, iSCSI, SAN, etc.
 </span>
-for production clusters,
-is to make your pods' storages point to another storage not dependent on the
-cluster's existence. On the condition of a resource restricted machine, however,
-these production-like solutions might not do. Let's investigate an alternative,
+to the cluster to hold the data via Persistent Volumes
+<label for="sn-pv-definition"
+       class="margin-toggle sidenote-number">
+</label>
+<input type="checkbox"
+       id="sn-pv-definition"
+       class="margin-toggle"/>
+<span class="sidenote">
+Persistent Volumes are resources consumed by Persistent Volume Claims, the same way
+node resources are used by pods. The basic resources are storage size and its
+access modes.
+</span>
+(PVs) might not do, for similar reasons. Let's investigate an alternative,
 lightweight solution.
 
 </section>
@@ -41,30 +49,36 @@ lightweight solution.
 
 A description of the situation follows. We use Kind to orchestrate containers on
 top of 3 containers, each of which plays the role of a node in our cluster, run
-by Docker. Kind installs Kubernetes in these 3 containers, 2 of which are
-workers and will run 'kubelet'.
+by Docker. Kind installs Kubernetes components in these 3 containers.
 
-Upon creation of the pods we declare, PVCs are also created, which claim their
-respective dynamically created PVs. These PVCs sit in a directory inside the
-worker nodes where the respective pods reside. The issue now seems a bit more
-clear. Docker containers are effemeral. If so, these PVCs will not survive
-cluster teardowns.
+Upon creation of the pods we declare, Persistent Volume Claims (PVCs) are also
+created, which claim their respective dynamically
+<label for="sn-dynamic-pvc"
+       class="margin-toggle sidenote-number">
+</label>
+<input type="checkbox"
+       id="sn-dynamic-pvc"
+       class="margin-toggle"/>
+<span class="sidenote">
+If none of the existing static PVs match a user's
+PVC, the cluster tries to dynamically provision a volume for the PVC.
+</span>
+created PVs. These PVCs sit in
+a directory inside the worker nodes (`/var/local-path-provisioner`) where the
+respective pods reside
+<label for="sn-pv-definition"
+       class="margin-toggle sidenote-number">
+</label>
+<input type="checkbox"
+       id="sn-pv-definition"
+       class="margin-toggle"/>
+<span class="sidenote">
+From the point of view of a pod, PVCs are volumes!
+</span>
+. The issue now seems a bit more clear. Docker containers
+are ephemeral. If so, these PVCs will not survive cluster teardowns.
 
 Let's say our Kind configuration is sung like this:
-<span class="marginnote">
-This configuration is taken from a self-learning hobby project I made, in an attempt
-to learn GitFlow. So it was quite complete, involving setting up a container image registry,
-a source version control software and Jenkins.
-</span>
-
-<span class="marginnote">
-
-</span>
-
-<span class="marginnote">
-So, this explains the localhost Harbor configuration, and the TLS skip
-you should never do in production.
-</span>
 
 <pre>
 <code>
@@ -85,8 +99,22 @@ containerdConfigPatches:
     
 </code>
 </pre>
-
-Suppose we are releasing a Gitea instance, configured like this in our helmfile.yaml:
+Suppose 
+<label for="mn-demo"
+       class="margin-toggle">
+       ∮
+</label>
+<input type="checkbox"
+       id="mn-demo"
+       class="margin-toggle"/>
+<span class="marginnote">
+These configurations are taken from a self-learning hobby project I made to
+learn GitFlow. It is quite complete. Involves setting up a container image
+registry, a source version control software and Jenkins.  This explains the
+localhost Harbor configuration, and the TLS skip you should never do in
+production.
+</span>
+we are releasing a Gitea instance, configured like this in our `helmfile.yaml`:
 
 <pre>
 <code>
@@ -121,7 +149,7 @@ gitea-postgresql-ha-postgresql-2              1/1     Running   0          2m22s
 </code>
 </pre>
 
-...and inspecting the worker nodes the following way...
+...and then, inspecting the worker nodes the following way...
 
 <pre>
 <code>
@@ -226,7 +254,22 @@ configuration.
 The solution consists in creating static Persistent Volumes and static
 Persistent Volume Claims, which guarantee their identification across cluster
 teardowns; and also, the configuration of `persistentVolumeReclaimPolicy` to
-`Retain`, so that the storages can be reclaimed and of `volumeMode` to
+`Retain`
+<label for="sn-retain-definition"
+       class="margin-toggle sidenote-number">
+</label>
+<input type="checkbox"
+       id="sn-retain-definition"
+       class="margin-toggle"/>
+<span class="sidenote">
+The options for this configuration are Retain, Delete or Recycle.  The Retain
+policy allows for manual reclamation of the resource.  When the
+PersistentVolumeClaim is deleted, the PersistentVolume still exists and the
+volume is considered "released". But it is not yet available for another claim
+because the previous claimant's data remains on the volume.  Delete option is
+obvious. Recycle just performs a basic scrub: rm -rf /thevolume/*
+</span>
+, so that the storages can be reclaimed and of `volumeMode` to
 `Filesystem`, so that we can use the host's filesystem to store the PVCs.
 
 We will also need to instruct Kind to mount, in a user provided directory,
@@ -385,7 +428,6 @@ status:
 </code>
 </pre>
 
-    <!-- #path: /var/local-path-provisioner/pvc-077c94a5-4826-4bbf-8af6-62ff43bf692a_gitea_gitea-shared-storage -->
 Which needs to be pruned so as to look like:
 <span class="marginnote">
 Here, we remove labels and annotations that are dynamically merged with the
@@ -425,7 +467,7 @@ spec:
   - ReadWriteOnce
   capacity:
     storage: 10Gi
-  claimRef:
+  claimRef: # claimRef ensures a one-to-one binding.
     apiVersion: v1
     kind: PersistentVolumeClaim
     name: gitea-shared-storage
@@ -463,12 +505,21 @@ spec:
 </code>
 </pre>
 
-My Makefile already applies the manifests in `manifests` directory. So a cluster
-recreation automatically applies this config.
-
 Applying the config after a cluster teardown does not have an immediate result.
-For some reason, it is necessary to set appropriate permissions on the created
-directory:
+It is necessary to set appropriate permissions on the created directory
+<label for="sn-permissions"
+       class="margin-toggle sidenote-number">
+</label>
+<input type="checkbox"
+       id="sn-permissions"
+       class="margin-toggle"/>
+<span class="sidenote">
+Some files or directories created on the underlying hosts might only be
+accessible by root. It is necessary to run the process as root in a
+privileged container or modify the file permissions on the host to be able to
+read from (or write to) a hostPath volume.
+</span>
+:
 
 <pre>
 <code>
