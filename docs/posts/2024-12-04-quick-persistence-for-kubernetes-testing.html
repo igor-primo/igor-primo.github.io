@@ -284,13 +284,13 @@ nodes:
 </code>
 </pre>
 <p>For the case of data persisted by the very Gitea pod, we can do…
+<label for="mn-shared-storage" class="margin-toggle">
+∮
+</label>
+<input type="checkbox" id="mn-shared-storage" class="margin-toggle" />
 <span class="marginnote">
 Here, ‘gitea-shared-storage’ is the default storage claim name configured in its
 values.yaml configuration file.
-</span></p>
-<p><span class="marginnote"></p>
-<p></span></p>
-<p><span class="marginnote">
 We need, first, to create the <code>gitea</code> namespace and then create the desired
 resources there before deploying Gitea. The resulting manifest needs to be
 applied before helm invocation, using something like <code>kubectl apply -f manifests/gitea-storage.yaml</code>.
@@ -403,22 +403,22 @@ status:
 
 </code>
 </pre>
-<p>Which needs to be pruned so as to look like:
+<p>Which needs to be pruned so as to look like
+<label for="mn-pruned" class="margin-toggle">
+∮
+</label>
+<input type="checkbox" id="mn-pruned" class="margin-toggle" />
 <span class="marginnote">
 Here, we remove labels and annotations that are dynamically merged with the
 pod’s configuration and serve purposes of satistfying the application logic, as
 well as other observability data. They have no use in configuration declaration.
-</span></p>
-<p><span class="marginnote"></p>
-<p></span></p>
-<p><span class="marginnote">
 Notice the specs
 <code>metadata.name</code>,
 <code>spec.hostPath.path</code>,
 <code>spec.persistentVolumeReclaimPolicy</code>,
 <code>spec.volumeName</code>.
 Notice how they are consistent.
-</span></p>
+</span>:</p>
 <pre>
 <code>
 ---
