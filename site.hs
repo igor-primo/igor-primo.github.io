@@ -16,6 +16,10 @@ main = hakyllWith config $ do
         route   idRoute
         compile copyFileCompiler
 
+    match "training.html" $ do
+        route   idRoute
+        compile copyFileCompiler
+
     match "css/default.css" $ do
         route   idRoute
         compile compressCssCompiler
