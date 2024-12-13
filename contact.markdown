@@ -2,7 +2,7 @@
 title: Contact
 ---
 
-# Talk to me
+# Let's chat
 
 <section>
 
