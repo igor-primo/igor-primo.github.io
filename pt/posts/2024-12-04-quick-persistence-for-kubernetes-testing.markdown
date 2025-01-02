@@ -1,94 +1,85 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
-    <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-        <title>Igor's Minimal Presence - Manual Configurations In Kind</title>
-        <link rel="stylesheet" type="text/css" href="../css/default.css" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body class="sans">
-        <div id="header">
-            <div id="logo">
-                <a href="../">Minimal Presence</a>
-                <a href="../contact.html">Let's chat</a>
-            </div>
-            <!-- <div id="navigation">
-                <a href="/">Home</a>
-                <a href="/about.html">About</a>
-                <a href="/contact.html">Contact</a>
-                <a href="/archive.html">Archive</a>
-            </div> -->
-        </div>
-
-        <div id="content">
-            <article>
-                <!-- <h1 id="tufte-css">Manual Configurations In Kind</h1> -->
-                <h1 id="tufte-css">Manual Configurations In Kind</h1>
-
-<div class="info">
-    
-        <p class="subtitle">For when leaving a test cluster up is a luxury</p>
-    
-    December  4, 2024
-    
-</div>
+---
+title: Configurações Manuais em Kind
+subtitle: For when leaving a test cluster up is a luxury
+---
 
 <section>
-<h2 id="the-problem">The problem</h2>
-<p>Sometimes, simply pruning a <code>values.yaml</code> file to remove unnecessary applications
+
+## The problem
+
+Sometimes, simply pruning a `values.yaml` file to remove unnecessary applications
 from your Kind deployed K8s local cluster is not sufficient for a
 straightforward learning flow. On a resource restricted machine, leaving a
 local test cluster up while doing other dev chores, using a web browser, or
-simply playing around in one’s computer, is not bearable. This poses a
+simply playing around in one's computer, is not bearable.  This poses a
 problem for manual configurations applied while testing applications, such as
 creating users on the fly in your app, which will be destroyed upon cluster
-teardown.</p>
-<p>In circumstances like these, setting up services external
-<label for="sn-heard-production" class="margin-toggle sidenote-number">
+teardown.
+
+In circumstances like these, setting up services external
+<label for="sn-heard-production"
+       class="margin-toggle sidenote-number">
 </label>
-<input type="checkbox" id="sn-heard-production" class="margin-toggle" />
+<input type="checkbox"
+       id="sn-heard-production"
+       class="margin-toggle"/>
 <span class="sidenote">
 NFS, iSCSI, SAN, etc.
 </span>
 to the cluster to hold the data via Persistent Volumes
-<label for="sn-pv-definition" class="margin-toggle sidenote-number">
+<label for="sn-pv-definition"
+       class="margin-toggle sidenote-number">
 </label>
-<input type="checkbox" id="sn-pv-definition" class="margin-toggle" />
+<input type="checkbox"
+       id="sn-pv-definition"
+       class="margin-toggle"/>
 <span class="sidenote">
 Persistent Volumes are resources consumed by Persistent Volume Claims, the same way
 node resources are used by pods. The basic resources are storage size and its
 access modes.
 </span>
-(PVs) might not do, for similar reasons. Let’s investigate an alternative,
-lightweight solution.</p>
+(PVs) might not do, for similar reasons. Let's investigate an alternative,
+lightweight solution.
+
 </section>
+
 <section>
-<h2 id="understanding-the-situation">Understanding the situation</h2>
-<p>A description of the situation follows. We use Kind to orchestrate containers on
+
+## Understanding the situation
+
+A description of the situation follows. We use Kind to orchestrate containers on
 top of 3 containers, each of which plays the role of a node in our cluster, run
-by Docker. Kind installs Kubernetes components in these 3 containers.</p>
-<p>Upon creation of the pods we declare, Persistent Volume Claims (PVCs) are also
+by Docker. Kind installs Kubernetes components in these 3 containers.
+
+Upon creation of the pods we declare, Persistent Volume Claims (PVCs) are also
 created, which claim their respective dynamically
-<label for="sn-dynamic-pvc" class="margin-toggle sidenote-number">
+<label for="sn-dynamic-pvc"
+       class="margin-toggle sidenote-number">
 </label>
-<input type="checkbox" id="sn-dynamic-pvc" class="margin-toggle" />
+<input type="checkbox"
+       id="sn-dynamic-pvc"
+       class="margin-toggle"/>
 <span class="sidenote">
-If none of the existing static PVs match a user’s
+If none of the existing static PVs match a user's
 PVC, the cluster tries to dynamically provision a volume for the PVC.
 </span>
 created PVs. These PVCs sit in
-a directory inside the worker nodes (<code>/var/local-path-provisioner</code>) where the
+a directory inside the worker nodes (`/var/local-path-provisioner`) where the
 respective pods reside
-<label for="sn-pv-definition" class="margin-toggle sidenote-number">
+<label for="sn-pv-definition"
+       class="margin-toggle sidenote-number">
 </label>
-<input type="checkbox" id="sn-pv-definition" class="margin-toggle" />
+<input type="checkbox"
+       id="sn-pv-definition"
+       class="margin-toggle"/>
 <span class="sidenote">
 From the point of view of a pod, PVCs are volumes!
 </span>
 . The issue now seems a bit more clear. Docker containers
-are ephemeral. If so, these PVCs will not survive cluster teardowns.</p>
-<p>Let’s say our Kind configuration is sung like this:</p>
+are ephemeral. If so, these PVCs will not survive cluster teardowns.
+
+Let's say our Kind configuration is sung like this:
+
 <pre>
 <code>
 kind: Cluster
@@ -108,19 +99,23 @@ containerdConfigPatches:
     
 </code>
 </pre>
-<p>Suppose
-<label for="mn-demo" class="margin-toggle">
-∮
+Suppose 
+<label for="mn-demo"
+       class="margin-toggle">
+       ∮
 </label>
-<input type="checkbox" id="mn-demo" class="margin-toggle" />
+<input type="checkbox"
+       id="mn-demo"
+       class="margin-toggle"/>
 <span class="marginnote">
 These configurations are taken from a self-learning hobby project I made to
 learn GitFlow. It is quite complete. Involves setting up a container image
-registry, a source version control software and Jenkins. This explains the
+registry, a source version control software and Jenkins.  This explains the
 localhost Harbor configuration, and the TLS skip you should never do in
 production.
 </span>
-we are releasing a Gitea instance, configured like this in our <code>helmfile.yaml</code>:</p>
+we are releasing a Gitea instance, configured like this in our `helmfile.yaml`:
+
 <pre>
 <code>
 ...
@@ -137,7 +132,9 @@ we are releasing a Gitea instance, configured like this in our <code>helmfile.ya
 
 </code>
 </pre>
-<p>We can wait until we have a working instance by running…</p>
+
+We can wait until we have a working instance by running...
+
 <pre>
 <code>
 % watch kubectl get pod -n gitea
@@ -151,7 +148,9 @@ gitea-postgresql-ha-postgresql-2              1/1     Running   0          2m22s
 
 </code>
 </pre>
-<p>…and then, inspecting the worker nodes the following way…</p>
+
+...and then, inspecting the worker nodes the following way...
+
 <pre>
 <code>
 % docker ps --format=json | jq '[.Names, .ID]'
@@ -181,9 +180,12 @@ pvc-a247f26e-26b5-4ec5-9d3b-6b51569319ab_gitea_gitea-shared-storage
 
 </code>
 </pre>
-<p>…we catch these little worms preparing some trouble.</p>
-<p>These are the PVCs where the data the containers in the pod use. In fact, we
-can verify this a little further by running an incantation like…</p>
+
+...we catch these little worms preparing some trouble.
+
+These are the PVCs where the data the containers in the pod use.  In fact, we
+can verify this a little further by running an incantation like...
+
 <pre>
 <code>
 % docker exec -it 9b4 sh -c 'apt update -y && apt install -y file && find /var/local-path-provisioner/ -type f -exec file '{}' \;'
@@ -210,8 +212,10 @@ can verify this a little further by running an incantation like…</p>
 ...
 
 </pre>
-<p></code></p>
-<p>Now, let’s teardown our cluster and inspect the hashes.</p>
+</code>
+
+Now, let's teardown our cluster and inspect the hashes.
+
 <pre>
 <code>
 % docker ps --format=json | jq '[.Names, .ID]'
@@ -236,37 +240,49 @@ pvc-9e8d077a-10d8-418d-bbfc-995dc1a4c9df_gitea_gitea-shared-storage
 
 </code>
 </pre>
-<p>An then, we can verify that the hashes changed. The storages were destroyed and
+
+An then, we can verify that the hashes changed. The storages were destroyed and
 recreated, leaving us with the responsibility to recreate our manual
-configuration.</p>
+configuration.
+
 </section>
+
 <section>
-<h2 id="the-solution">The solution</h2>
-<p>The solution consists in creating static Persistent Volumes and static
+
+## The solution
+
+The solution consists in creating static Persistent Volumes and static
 Persistent Volume Claims, which guarantee their identification across cluster
-teardowns; and also, the configuration of <code>persistentVolumeReclaimPolicy</code> to
-<code>Retain</code>
-<label for="sn-retain-definition" class="margin-toggle sidenote-number">
+teardowns; and also, the configuration of `persistentVolumeReclaimPolicy` to
+`Retain`
+<label for="sn-retain-definition"
+       class="margin-toggle sidenote-number">
 </label>
-<input type="checkbox" id="sn-retain-definition" class="margin-toggle" />
+<input type="checkbox"
+       id="sn-retain-definition"
+       class="margin-toggle"/>
 <span class="sidenote">
-The options for this configuration are Retain, Delete or Recycle. The Retain
-policy allows for manual reclamation of the resource. When the
+The options for this configuration are Retain, Delete or Recycle.  The Retain
+policy allows for manual reclamation of the resource.  When the
 PersistentVolumeClaim is deleted, the PersistentVolume still exists and the
-volume is considered “released”. But it is not yet available for another claim
-because the previous claimant’s data remains on the volume. Delete option is
+volume is considered "released". But it is not yet available for another claim
+because the previous claimant's data remains on the volume.  Delete option is
 obvious. Recycle just performs a basic scrub: rm -rf /thevolume/*
 </span>
-, so that the storages can be reclaimed and of <code>volumeMode</code> to
-<code>Filesystem</code>, so that we can use the host’s filesystem to store the PVCs.</p>
-<p>We will also need to instruct Kind to mount, in a user provided directory,
-the container directory where the PVCs are stored. For this we will need to create a directory:</p>
+, so that the storages can be reclaimed and of `volumeMode` to
+`Filesystem`, so that we can use the host's filesystem to store the PVCs.
+
+We will also need to instruct Kind to mount, in a user provided directory,
+the container directory where the PVCs are stored. For this we will need to create a directory:
+
 <pre>
 <code>
 mkdir .volumes
 </code>
 </pre>
-<p>And, then, to modify <code>config.yaml</code> like so:</p>
+
+And, then, to modify `config.yaml` like so:
+
 <pre>
 <code>
 kind: Cluster
@@ -283,18 +299,24 @@ nodes:
       containerPath: /var/local-path-provisioner
 </code>
 </pre>
-<p>For the case of data persisted by the very Gitea pod, we can do…
-<label for="mn-shared-storage" class="margin-toggle">
-∮
+
+For the case of data persisted by the very Gitea pod, we can do...
+<label for="mn-shared-storage"
+       class="margin-toggle">
+       ∮
 </label>
-<input type="checkbox" id="mn-shared-storage" class="margin-toggle" />
+<input type="checkbox"
+       id="mn-shared-storage"
+       class="margin-toggle"/>
 <span class="marginnote">
-Here, ‘gitea-shared-storage’ is the default storage claim name configured in its
+Here, 'gitea-shared-storage' is the default storage claim name configured in its
 values.yaml configuration file.
-We need, first, to create the <code>gitea</code> namespace and then create the desired
+We need, first, to create the `gitea` namespace and then create the desired
 resources there before deploying Gitea. The resulting manifest needs to be
-applied before helm invocation, using something like <code>kubectl apply -f manifests/gitea-storage.yaml</code>.
-</span></p>
+applied before helm invocation, using something like `kubectl apply -f
+manifests/gitea-storage.yaml`.
+</span>
+
 <pre>
 <code>
 export FILE="manifests/gitea-storage.yaml"
@@ -314,7 +336,9 @@ kubectl get pvc -n gitea gitea-shared-storage -oyaml >> $FILE
 
 </code>
 </pre>
-<p>The resulting file might look like this:</p>
+
+The resulting file might look like this:
+
 <pre>
 <code>
 ---
@@ -403,22 +427,27 @@ status:
 
 </code>
 </pre>
-<p>Which needs to be pruned so as to look like
-<label for="mn-pruned" class="margin-toggle">
-∮
+
+Which needs to be pruned so as to look like
+<label for="mn-pruned"
+       class="margin-toggle">
+       ∮
 </label>
-<input type="checkbox" id="mn-pruned" class="margin-toggle" />
+<input type="checkbox"
+       id="mn-pruned"
+       class="margin-toggle"/>
 <span class="marginnote">
 Here, we remove labels and annotations that are dynamically merged with the
-pod’s configuration and serve purposes of satistfying the application logic, as
+pod's configuration and serve purposes of satistfying the application logic, as
 well as other observability data. They have no use in configuration declaration.
 Notice the specs
-<code>metadata.name</code>,
-<code>spec.hostPath.path</code>,
-<code>spec.persistentVolumeReclaimPolicy</code>,
-<code>spec.volumeName</code>.
+  `metadata.name`,
+  `spec.hostPath.path`,
+  `spec.persistentVolumeReclaimPolicy`,
+  `spec.volumeName`.
 Notice how they are consistent.
-</span>:</p>
+</span>:
+
 <pre>
 <code>
 ---
@@ -475,28 +504,31 @@ spec:
 
 </code>
 </pre>
-<p>Applying the config after a cluster teardown does not have an immediate result.
+
+Applying the config after a cluster teardown does not have an immediate result.
 It is necessary to set appropriate permissions on the created directory
-<label for="sn-permissions" class="margin-toggle sidenote-number">
+<label for="sn-permissions"
+       class="margin-toggle sidenote-number">
 </label>
-<input type="checkbox" id="sn-permissions" class="margin-toggle" />
+<input type="checkbox"
+       id="sn-permissions"
+       class="margin-toggle"/>
 <span class="sidenote">
 Some files or directories created on the underlying hosts might only be
 accessible by root. It is necessary to run the process as root in a
 privileged container or modify the file permissions on the host to be able to
 read from (or write to) a hostPath volume.
 </span>
-:</p>
+:
+
 <pre>
 <code>
 chmod ao+w .volumes/pvc-gitea-storage
 </code>
 </pre>
-<p>And, now I have persistent manual configurations.</p>
-<p>The respective repository can be found <a href="https://github.com/igor-primo/gitflow">here</a>.</p>
-</section>
 
-            </article>
-        </div>
-    </body>
-</html>
+And, now I have persistent manual configurations.
+
+The respective repository can be found [here](https://github.com/igor-primo/gitflow).
+
+</section>
