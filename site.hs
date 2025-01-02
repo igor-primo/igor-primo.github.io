@@ -42,15 +42,15 @@ main = hakyllWith config $ do
     match "en/posts/*" $ do
         route $ setExtension "html"
         compile $ pandocCompiler
-            >>= loadAndApplyTemplate "en/templates/post.html"    postCtx
-            >>= loadAndApplyTemplate "en/templates/default.html" postCtx
+            >>= loadAndApplyTemplate "en/templates/post.html"    postCtxEn
+            >>= loadAndApplyTemplate "en/templates/default.html" postCtxEn
             >>= relativizeUrls
 
     match "pt/posts/*" $ do
         route $ setExtension "html"
         compile $ pandocCompiler
-            >>= loadAndApplyTemplate "pt/templates/post.html"    postCtx
-            >>= loadAndApplyTemplate "pt/templates/default.html" postCtx
+            >>= loadAndApplyTemplate "pt/templates/post.html"    postCtxPt
+            >>= loadAndApplyTemplate "pt/templates/default.html" postCtxPt
             >>= relativizeUrls
 
     create ["en/archive.html"] $ do
@@ -58,7 +58,7 @@ main = hakyllWith config $ do
         compile $ do
             posts <- recentFirst =<< loadAll "en/posts/*"
             let archiveCtx =
-                    listField "posts" postCtx (return posts) `mappend`
+                    listField "posts" postCtxEn (return posts) `mappend`
                     constField "title" "Archives"            `mappend`
                     defaultContext
 
@@ -72,7 +72,7 @@ main = hakyllWith config $ do
         compile $ do
             posts <- recentFirst =<< loadAll "pt/posts/*"
             let archiveCtx =
-                    listField "posts" postCtx (return posts) `mappend`
+                    listField "posts" postCtxPt (return posts) `mappend`
                     constField "title" "Arquivos"            `mappend`
                     defaultContext
 
@@ -87,7 +87,7 @@ main = hakyllWith config $ do
         compile $ do
             posts <- recentFirst =<< loadAll "en/posts/*"
             let indexCtx =
-                    listField "posts" postCtx (return posts) `mappend`
+                    listField "posts" postCtxEn (return posts) `mappend`
                     constField "title" "My Minimal Presence" `mappend`
                     defaultContext
 
@@ -101,7 +101,7 @@ main = hakyllWith config $ do
         compile $ do
             posts <- recentFirst =<< loadAll "pt/posts/*"
             let indexCtx =
-                    listField "posts" postCtx (return posts) `mappend`
+                    listField "posts" postCtxPt (return posts) `mappend`
                     constField "title" "Minha presença mínima" `mappend`
                     defaultContext
 
@@ -115,9 +115,16 @@ main = hakyllWith config $ do
 
 
 --------------------------------------------------------------------------------
-postCtx :: Context String
-postCtx =
-    dateField "date" "%B %e, %Y" `mappend`
+postCtxEn :: Context String
+postCtxEn =
+    dateField "date" "%m/%d/%Y" `mappend`
+    field "enUrl" insertEnUrl `mappend`
+    field "ptUrl" insertPtUrl `mappend`
+    defaultContext
+
+postCtxPt :: Context String
+postCtxPt =
+    dateField "date" "%d/%m/%Y" `mappend`
     field "enUrl" insertEnUrl `mappend`
     field "ptUrl" insertPtUrl `mappend`
     defaultContext
