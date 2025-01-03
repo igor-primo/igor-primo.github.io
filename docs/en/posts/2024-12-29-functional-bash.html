@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <title>Igor's Minimal Presence - Expressive Bash (💥)</title>
+        <link rel="stylesheet" type="text/css" href="../../css/default.css" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body class="sans">
+        <div id="header">
+            <div id="logo">
+                <a href="../../en">Minimal Presence</a>
+                <a href="../../en/contact.html">Let's chat</a>
+            </div>
+        </div>
+
+        <div id="content">
+            <article>
+                <h1 id="tufte-css">Expressive Bash (💥)</h1>
+
+<div class="info">
+    
+        <p class="subtitle">For those who value ease of reasoning</p>
+    
+    12/29/2024
+    
+</div>
+
+<a href="../../pt/posts/2024-12-29-functional-bash.html">Versão português</a>
+
+<section>
+<p>I was once tasked with creating a minimal Linux distribution
+whose sole purpose was to boot and prompt its user with as yes or no
+question to whether it should zero all data in the connected
+media storage devices. The mission was to give helpdesk professionals
+at the company a tool that could be booted from a flash-drive and
+automatically ask the user for the instruction, which was to erase
+data on the devices so they could be donated.</p>
+<p>The strategy I devised was to manually make TinyCore Linux UEFI bootable
+and install some common Linux tools (dd, od) along with bash and make
+the system start the zero-fill script on boot.</p>
+<p>The script I devised was along these lines:</p>
+<pre><code>#!/bin/bash
+
+BLOCKS=&quot;&quot;
+BLOCKS_N=&quot;&quot;
+PROCEED=&quot;&quot;
+PART=$(df $(pwd) | tail -n 1 | awk '{print $1}' | head -c 8)
+
+sanitize() {
+  unset BLOCKS
+  unset BLOCKS_N
+  unset PROCEED
+}
+
+verify_usage() {
+  echo -e &quot;\nThe following procedure will erase all data on the media&quot;
+  echo &quot;of this machine. Type \&quot;yes\&quot; to proceed.&quot;
+  read INPUT
+  if [ &quot;$INPUT&quot; != &quot;yes&quot; ]
+  then
+    PROCEED=&quot;0&quot;
+    return
+  else
+    echo &quot;THE PROCEDURE WILL ERASE ALL DATA ON THE MACHINE&quot;
+    echo &quot;DO YOU REALLY WANT TO PROCEED?&quot;
+    echo &quot;IF YES, TYPE \&quot;YES\&quot;&quot;
+    read INPUT
+    if [ &quot;$INPUT&quot; != &quot;YES&quot; ]
+    then
+      PROCEED=&quot;0&quot;
+      return
+    fi
+  fi
+  PROCEED=&quot;1&quot;
+}
+
+get_blocks() {
+  BLOCKS_N=($(ls /sys/block/ | grep -v 'ram\|loop'))
+  for i in &quot;${BLOCKS_N[@]}&quot;
+  do
+    if [ &quot;/dev/$i&quot; != &quot;$PART&quot; ]
+    then 
+      BLOCKS=(${BLOCKS[@]} $i)
+    fi
+  done
+  echo &quot;Working on devices: ${BLOCKS[*]}&quot;
+}
+
+generate_commands() {
+  for i in &quot;${BLOCKS[@]}&quot;
+  do
+    COMMAND=&quot;dd if=/dev/zero of=/dev/$i bs=5M oflag=direct&quot;
+    echo -e &quot;\nWorking on block: $i ($COMMAND)&quot;
+    eval &quot;$COMMAND&quot;
+    sleep 2
+  done
+  echo -e &quot;\nTask completed&quot;
+}
+
+make_tests() {
+  echo &quot;Do you want to perform a zero-fill test on the disks? (\&quot;y\&quot; or \&quot;n\&quot;)&quot;
+  read TO_TEST
+  if [ &quot;$TO_TEST&quot; == &quot;y&quot; ]
+  then
+    for i in &quot;${BLOCKS[@]}&quot;
+    do
+      TEST_COMMAND=&quot;od /dev/$i&quot;
+      echo -e &quot;\nReading the media $i ($TEST_COMMAND)&quot;
+      eval &quot;$TEST_COMMAND&quot;
+    done
+  fi
+}
+
+main() {
+  while true
+  do
+    sanitize
+    get_blocks
+    verify_usage
+    if [ &quot;$PROCEED&quot; == &quot;1&quot; ]
+    then
+      generate_commands
+      make_tests
+    fi
+  done
+}
+
+main</code></pre>
+<p>It is clearly an imperative style script. Now, I have come to gradually
+admire the simplicity and power of functional programming; and I think
+every one who writes code can benefit from its expressivity. The previous
+script has a logical core (the main function) and implementation routines
+that do the dirty work
+<label for="dirty-work" class="margin-toggle sidenote-number">
+</label>
+<input type="checkbox" id="dirty-work" class="margin-toggle" />
+<span class="sidenote">
+The idea here was to abstract the logic from the implementation.
+This is not a nice idea, as often made out to be.
+</span>
+. This is not nearly enough expressive: function
+names do not express how the respective functions <em>change program state</em>.
+Also, imperative style programming <em>is not semantically clear</em>.
+Substituting function calls for their implementations makes the program too
+<em>busy</em> and <em>overwhelming</em>, and it doesn’t sound like one-lining up everything
+could make this thing easier to read:</p>
+<pre><code>#!/bin/bash
+
+BLOCKS=&quot;&quot;
+PROCEED=&quot;&quot;
+PART=$(df $(pwd) | tail -n 1 | awk '{print $1}' | head -c 8)
+
+main() {
+  while true
+  do
+    for i in $(ls /sys/block/ | grep -v 'ram\|loop')
+    do
+      [ &quot;/dev/$i&quot; != &quot;$PART&quot; ] &amp;&amp; BLOCKS=(${BLOCKS[@]} $i)
+    done
+    echo &quot;Working on devices: ${BLOCKS[*]}&quot;
+
+    echo -e &quot;\nThe following procedure will erase all data on the media&quot;
+    echo &quot;of this machine. Type \&quot;yes\&quot; to proceed.&quot;
+    read FIRST_INPUT
+    echo &quot;THE PROCEDURE WILL ERASE ALL DATA ON THE MACHINE&quot;
+    echo &quot;DO YOU REALLY WANT TO PROCEED?&quot;
+    echo &quot;IF YES, TYPE \&quot;YES\&quot;&quot;
+    read SECOND_INPUT
+
+    if [ &quot;$FIRST_INPUT&quot; == &quot;yes&quot; ] &amp;&amp; [ &quot;$SECOND_INPUT&quot; == &quot;YES&quot; ];
+    then
+      for i in &quot;${BLOCKS[@]}&quot;
+      do
+        echo -e &quot;\nWorking on block: $i&quot;
+        dd if=/dev/zero of=/dev/&quot;$i&quot; bs=5M oflag=direct &amp;&amp; sleep 2
+      done
+      echo -e &quot;\nTask completed&quot;
+
+      echo &quot;Do you want to perform a zero-fill test on the disks? (\&quot;y\&quot; or \&quot;n\&quot;)&quot;
+      read TO_TEST
+      if [ &quot;$TO_TEST&quot; == &quot;y&quot; ]
+      then
+        for i in &quot;${BLOCKS[@]}&quot;
+        do
+          echo -e &quot;\nReading the media $i&quot;
+          od /dev/&quot;$i&quot;
+        done
+      fi
+    fi
+    unset BLOCKS; unset PROCEED
+  done
+}
+
+main
+</code></pre>
+<p>Suggesting adoption of a functional programming language, though, for most
+teams seems like a vain dream, or at least too futuristic. So, instead of
+insisting on using a functional language, and if Python cannot be used in this
+instance, at least we should seek to make a better use of what we have. I
+sought on Internet for people using functional patterns in Bash and I found a
+delightful tiny library
+<label for="tiny-library" class="margin-toggle sidenote-number">
+</label>
+<input type="checkbox" id="tiny-library" class="margin-toggle" />
+<span class="sidenote">
+<a href="https://github.com/ssledz/bash-fun">bash-fun</a>
+</span>
+that just helps with that.</p>
+<p>I decided, then, to rewrite the previous script using functional patterns and
+see where I would go.</p>
+</section>
+<section>
+<h2 id="rewrite">Rewrite</h2>
+<p>Let’s go through the rewrite step by step.</p>
+<p>First, the <code>sanitize</code> function can be eradicated,
+on account of the fact that <code>PART</code> and <code>BLOCKS</code>
+variables are immutable and there is an unset
+instruction to unset the needed mutable variables:</p>
+<pre><code>local -r PART=$(df $(pwd) | tail -n 1 | awk '{print $1}' | head -c 8)
+local -r BLOCKS=$(ls /sys/block/ \
+  | grep -v 'ram\|loop' \
+  | filter lambda a . '[ &quot;/dev/$a&quot; != &quot;$PART&quot; ] &amp;&amp; ret true || ret false' \
+  | unlist \
+  | peek lambda a . echo 'Working on devices $a')
+...
+unset FIRST_INPUT SECOND_INPUT TO_TEST</code></pre>
+<p>Second, notice that the <code>map</code> function implements the
+filtering rule previously implemented by an
+imperative loop in the <code>get_blocks</code> function,
+and <code>unlist</code> function makes an
+array out of the resulting list, effectively
+making the <code>get_blocks</code> function obsolete.</p>
+<p>Third, the lines</p>
+<pre><code>echo -e &quot;\nThe following procedure will erase all data on the media&quot;
+echo &quot;of this machine. Type \&quot;yes\&quot; to proceed.&quot;
+read FIRST_INPUT
+echo &quot;THE PROCEDURE WILL ERASE ALL DATA ON THE MACHINE&quot;
+echo &quot;DO YOU REALLY WANT TO PROCEED?&quot;
+echo &quot;IF YES, TYPE \&quot;YES\&quot;&quot;
+read SECOND_INPUT
+
+if [ &quot;$FIRST_INPUT&quot; == &quot;yes&quot; ] &amp;&amp; [ &quot;$SECOND_INPUT&quot; == &quot;YES&quot; ];
+then
+...
+fi</code></pre>
+<p>can be simplified if we omit the second input, which is unnecessary, given the
+warning.</p>
+<pre><code>echo -e &quot;\nThe following procedure will erase all data on the media of this machine.&quot;
+echo &quot;THE PROCEDURE WILL ERASE ALL DATA ON THE MACHINE.&quot;
+read -p &quot;Type \&quot;yes\&quot; to proceed. &quot; FIRST_INPUT
+...
+
+[ &quot;$FIRST_INPUT&quot; == &quot;yes&quot; ] \
+</code></pre>
+<p>Forth, the lines that do the work can be made more declaratively looking,
+if we designate 2 functions to do the imperative effects, <code>zero</code> and <code>testit</code>.
+Then, we pass them to the <code>map</code> that wraps the loop over devices.</p>
+<pre><code>zero() { 
+    echo -e &quot;\nWorking on block /dev/$1&quot; &amp;&amp; dd if=/dev/zero of=/dev/&quot;$1&quot; bs=5M oflag=direct
+}
+testit() {
+    echo -e &quot;\nTesting /dev/$1&quot; &amp;&amp; od /dev/&quot;$1&quot;
+}
+
+[ &quot;$FIRST_INPUT&quot; == &quot;yes&quot; ] \
+    &amp;&amp; list $(echo &quot;$BLOCKS&quot;) \
+    | map lambda a . 'zero $a ; sleep 2 &amp;&amp; testit $a' \
+    &amp;&amp; echo -e '\nTask completed'</code></pre>
+<p>This condenses the logic in the <code>generate_commands</code> function.
+The test functionality is here enforced, which sounds good
+and also simplifies the script.</p>
+<p>The final result goes like this:</p>
+<pre><code>#!/bin/bash
+
+. ~/fun.sh
+
+main () {
+  local -r PART=$(df $(pwd) | tail -n 1 | awk '{print $1}' | head -c 8)
+  local -r BLOCKS=$(ls /sys/block/ \
+    | grep -v 'ram\|loop' \
+    | filter lambda a . '[ &quot;/dev/$a&quot; != &quot;$PART&quot; ] &amp;&amp; ret true || ret false' \
+    | unlist \
+    | peek lambda a . echo 'Working on devices $a')
+
+  echo -e &quot;\nThe following procedure will erase all data on the media of this machine.&quot;
+  echo &quot;THE PROCEDURE WILL ERASE ALL DATA ON THE MACHINE.&quot;
+  read -p &quot;Type \&quot;yes\&quot; to proceed. &quot; FIRST_INPUT
+
+  zero() { 
+    echo -e &quot;\nWorking on block /dev/$1&quot; &amp;&amp; dd if=/dev/zero of=/dev/&quot;$1&quot; bs=5M oflag=direct
+  }
+  testit() {
+    echo -e &quot;\nTesting /dev/$1&quot; &amp;&amp; od /dev/&quot;$1&quot;
+  }
+
+  [ &quot;$FIRST_INPUT&quot; == &quot;yes&quot; ] \
+    &amp;&amp; list $(echo &quot;$BLOCKS&quot;) \
+    | map lambda a . 'zero $a ; sleep 2 &amp;&amp; testit $a' \
+    &amp;&amp; echo -e '\nTask completed'
+
+  unset FIRST_INPUT SECOND_INPUT TO_TEST
+  main
+}
+
+main
+</code></pre>
+<p>This version of the script is tiny, very expressive, easy to read,
+and avoids confusion, though it is quite dense, on account of Bash’s
+exuberant syntax.</p>
+<p>But it is still delightful. The meaning of the program and the intention
+of the programmer are much clearer and easier to reason about.</p>
+<p>I have suspected, for quite some time, that Unix Philosophy and
+functional programming somehow marry each other.</p>
+</section>
+
+            </article>
+        </div>
+    </body>
+</html>
