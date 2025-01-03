@@ -212,7 +212,7 @@ Let's go through the rewrite step by step.
 
 First, the `sanitize` function can be eradicated,
 on account of the fact that `PART` and `BLOCKS`
-variables are immutable and there is an unset
+variables can be made immutable and there is an unset
 instruction to unset the needed mutable variables:
 
 ```
@@ -262,7 +262,17 @@ read -p "Type \"yes\" to proceed. " FIRST_INPUT
 
 Forth, the lines that do the work can be made more declaratively looking,
 if we designate 2 functions to do the imperative effects, `zero` and `testit`.
-Then, we pass them to the `map` that wraps the loop over devices.
+Then, we pass them to the `map`
+<label for="composition"
+       class="margin-toggle sidenote-number">
+</label>
+<input type="checkbox"
+       id="composition"
+       class="margin-toggle"/>
+<span class="sidenote">
+Almost composing them.
+</span>
+that wraps the loop over devices.
 ```
 zero() { 
     echo -e "\nWorking on block /dev/$1" && dd if=/dev/zero of=/dev/"$1" bs=5M oflag=direct

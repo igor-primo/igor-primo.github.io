@@ -216,7 +216,7 @@ see where I would go.</p>
 <p>Let’s go through the rewrite step by step.</p>
 <p>First, the <code>sanitize</code> function can be eradicated,
 on account of the fact that <code>PART</code> and <code>BLOCKS</code>
-variables are immutable and there is an unset
+variables can be made immutable and there is an unset
 instruction to unset the needed mutable variables:</p>
 <pre><code>local -r PART=$(df $(pwd) | tail -n 1 | awk '{print $1}' | head -c 8)
 local -r BLOCKS=$(ls /sys/block/ \
@@ -256,7 +256,14 @@ read -p &quot;Type \&quot;yes\&quot; to proceed. &quot; FIRST_INPUT
 </code></pre>
 <p>Forth, the lines that do the work can be made more declaratively looking,
 if we designate 2 functions to do the imperative effects, <code>zero</code> and <code>testit</code>.
-Then, we pass them to the <code>map</code> that wraps the loop over devices.</p>
+Then, we pass them to the <code>map</code>
+<label for="composition" class="margin-toggle sidenote-number">
+</label>
+<input type="checkbox" id="composition" class="margin-toggle" />
+<span class="sidenote">
+Almost composing them.
+</span>
+that wraps the loop over devices.</p>
 <pre><code>zero() { 
     echo -e &quot;\nWorking on block /dev/$1&quot; &amp;&amp; dd if=/dev/zero of=/dev/&quot;$1&quot; bs=5M oflag=direct
 }

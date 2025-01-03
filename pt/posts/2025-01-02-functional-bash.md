@@ -282,7 +282,7 @@ Em seguida, as passamos para o `map`
 <span class="sidenote">
 Quase como compondo-as.
 </span>
-, que envolve o loop sobre os dispositivos.
+, que "faz" o loop sobre os dispositivos.
 ```
 zero() { 
     echo -e "\nWorking on block /dev/$1" && dd if=/dev/zero of=/dev/"$1" bs=5M oflag=direct
