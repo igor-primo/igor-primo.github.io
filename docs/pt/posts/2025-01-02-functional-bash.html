@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="pt" lang="pt">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <title>Igor's Minimal Presence - Bash Expressivo (💥)</title>
+        <link rel="stylesheet" type="text/css" href="../../css/default.css" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body class="sans">
+        <div id="header">
+            <div id="logo">
+                <a href="../../pt">Presença Mínima</a>
+                <a href="../../pt/contact.html">Vamos conversar</a>
+            </div>
+        </div>
+
+        <div id="content">
+            <article>
+                <h1 id="tufte-css">Bash Expressivo (💥)</h1>
+
+<div class="info">
+    
+        <p class="subtitle">Para aqueles que valorizam facilidade de raciocínio</p>
+    
+    02/01/2025
+    
+</div>
+
+<a href="../../en/posts/2025-01-02-functional-bash.html">English version</a>
+
+<section>
+<p>Uma vez fui encarregado de criar uma distribuição Linux mínima cujo único
+propósito era inicializar e apresentar ao usuário uma pergunta de sim ou não
+sobre se todos os dados nos dispositivos de armazenamento conectados deveriam
+ser zerados. A missão era fornecer aos profissionais de suporte técnico da
+empresa uma ferramenta que pudesse ser inicializada a partir de um pendrive e,
+automaticamente, solicitasse ao usuário a instrução de apagar os dados nos
+dispositivos, para que os dispositivos pudessem ser doados.</p>
+<p>A estratégia que desenvolvi foi manualmente tornar o TinyCore Linux
+inicializável via UEFI, instalar algumas ferramentas Linux comuns (dd, od)
+junto com o bash, e configurar o sistema para iniciar o script de preenchimento
+com zeros na inicialização.</p>
+<p>O script
+<label for="script" class="margin-toggle sidenote-number">
+</label>
+<input type="checkbox" id="script" class="margin-toggle" />
+<span class="sidenote">
+O script original obviamente possuía strings em português,
+mas a versão original do post é em inglês.
+</span>
+que criei era algo parecido com isso:</p>
+<pre><code>#!/bin/bash
+
+BLOCKS=&quot;&quot;
+BLOCKS_N=&quot;&quot;
+PROCEED=&quot;&quot;
+PART=$(df $(pwd) | tail -n 1 | awk '{print $1}' | head -c 8)
+
+sanitize() {
+  unset BLOCKS
+  unset BLOCKS_N
+  unset PROCEED
+}
+
+verify_usage() {
+  echo -e &quot;\nThe following procedure will erase all data on the media&quot;
+  echo &quot;of this machine. Type \&quot;yes\&quot; to proceed.&quot;
+  read INPUT
+  if [ &quot;$INPUT&quot; != &quot;yes&quot; ]
+  then
+    PROCEED=&quot;0&quot;
+    return
+  else
+    echo &quot;THE PROCEDURE WILL ERASE ALL DATA ON THE MACHINE&quot;
+    echo &quot;DO YOU REALLY WANT TO PROCEED?&quot;
+    echo &quot;IF YES, TYPE \&quot;YES\&quot;&quot;
+    read INPUT
+    if [ &quot;$INPUT&quot; != &quot;YES&quot; ]
+    then
+      PROCEED=&quot;0&quot;
+      return
+    fi
+  fi
+  PROCEED=&quot;1&quot;
+}
+
+get_blocks() {
+  BLOCKS_N=($(ls /sys/block/ | grep -v 'ram\|loop'))
+  for i in &quot;${BLOCKS_N[@]}&quot;
+  do
+    if [ &quot;/dev/$i&quot; != &quot;$PART&quot; ]
+    then 
+      BLOCKS=(${BLOCKS[@]} $i)
+    fi
+  done
+  echo &quot;Working on devices: ${BLOCKS[*]}&quot;
+}
+
+generate_commands() {
+  for i in &quot;${BLOCKS[@]}&quot;
+  do
+    COMMAND=&quot;dd if=/dev/zero of=/dev/$i bs=5M oflag=direct&quot;
+    echo -e &quot;\nWorking on block: $i ($COMMAND)&quot;
+    eval &quot;$COMMAND&quot;
+    sleep 2
+  done
+  echo -e &quot;\nTask completed&quot;
+}
+
+make_tests() {
+  echo &quot;Do you want to perform a zero-fill test on the disks? (\&quot;y\&quot; or \&quot;n\&quot;)&quot;
+  read TO_TEST
+  if [ &quot;$TO_TEST&quot; == &quot;y&quot; ]
+  then
+    for i in &quot;${BLOCKS[@]}&quot;
+    do
+      TEST_COMMAND=&quot;od /dev/$i&quot;
+      echo -e &quot;\nReading the media $i ($TEST_COMMAND)&quot;
+      eval &quot;$TEST_COMMAND&quot;
+    done
+  fi
+}
+
+main() {
+  while true
+  do
+    sanitize
+    get_blocks
+    verify_usage
+    if [ &quot;$PROCEED&quot; == &quot;1&quot; ]
+    then
+      generate_commands
+      make_tests
+    fi
+  done
+}
+
+main</code></pre>
+<p>É claramente um script de estilo imperativo. Agora, comecei a admirar
+gradualmente a simplicidade e o poder da programação funcional; e acredito
+que todos que escrevem código podem se beneficiar de sua expressividade.
+O script anterior possui um núcleo lógico (a função principal) e rotinas de
+implementação que fazem o trabalho pesado
+<label for="dirty-work" class="margin-toggle sidenote-number">
+</label>
+<input type="checkbox" id="dirty-work" class="margin-toggle" />
+<span class="sidenote">
+A ideia aqui era abstrair a lógica da implementação.
+Isso não é exatamente uma boa ideia, como muitas vezes se faz parecer.
+</span>
+. Isso não é nem de longe suficientemente expressivo: os nomes das funções não
+expressam como as respectivas funções <em>alteram o estado do programa</em>. Além
+disso, a programação em estilo imperativo <em>não é semanticamente clara</em>.
+Substituir chamadas de funções por suas implementações torna o programa muito
+<em>carregado</em> e <em>opressivo</em>, e não parece que colocar vários comandos em uma
+única linha tornaria isso mais fácil de ler:</p>
+<pre><code>#!/bin/bash
+
+BLOCKS=&quot;&quot;
+PROCEED=&quot;&quot;
+PART=$(df $(pwd) | tail -n 1 | awk '{print $1}' | head -c 8)
+
+main() {
+  while true
+  do
+    for i in $(ls /sys/block/ | grep -v 'ram\|loop')
+    do
+      [ &quot;/dev/$i&quot; != &quot;$PART&quot; ] &amp;&amp; BLOCKS=(${BLOCKS[@]} $i)
+    done
+    echo &quot;Working on devices: ${BLOCKS[*]}&quot;
+
+    echo -e &quot;\nThe following procedure will erase all data on the media&quot;
+    echo &quot;of this machine. Type \&quot;yes\&quot; to proceed.&quot;
+    read FIRST_INPUT
+    echo &quot;THE PROCEDURE WILL ERASE ALL DATA ON THE MACHINE&quot;
+    echo &quot;DO YOU REALLY WANT TO PROCEED?&quot;
+    echo &quot;IF YES, TYPE \&quot;YES\&quot;&quot;
+    read SECOND_INPUT
+
+    if [ &quot;$FIRST_INPUT&quot; == &quot;yes&quot; ] &amp;&amp; [ &quot;$SECOND_INPUT&quot; == &quot;YES&quot; ];
+    then
+      for i in &quot;${BLOCKS[@]}&quot;
+      do
+        echo -e &quot;\nWorking on block: $i&quot;
+        dd if=/dev/zero of=/dev/&quot;$i&quot; bs=5M oflag=direct &amp;&amp; sleep 2
+      done
+      echo -e &quot;\nTask completed&quot;
+
+      echo &quot;Do you want to perform a zero-fill test on the disks? (\&quot;y\&quot; or \&quot;n\&quot;)&quot;
+      read TO_TEST
+      if [ &quot;$TO_TEST&quot; == &quot;y&quot; ]
+      then
+        for i in &quot;${BLOCKS[@]}&quot;
+        do
+          echo -e &quot;\nReading the media $i&quot;
+          od /dev/&quot;$i&quot;
+        done
+      fi
+    fi
+    unset BLOCKS; unset PROCEED
+  done
+}
+
+main
+</code></pre>
+<p>Sugerir a adoção de uma linguagem de programação funcional, no entanto, para a
+maioria das equipes, parece um sonho vão ou, no mínimo, muito futurista. Então,
+em vez de insistir no uso de uma linguagem funcional, e caso Python não possa
+ser usado em um caso particular, pelo menos devemos buscar um melhor
+aproveitamento do que temos. Procurei na Internet por pessoas utilizando
+padrões funcionais em Bash e encontrei uma pequena biblioteca encantadora
+<label for="tiny-library" class="margin-toggle sidenote-number">
+</label>
+<input type="checkbox" id="tiny-library" class="margin-toggle" />
+<span class="sidenote">
+<a href="https://github.com/ssledz/bash-fun">bash-fun</a>
+</span>
+que ajuda justamente nisso.</p>
+<p>Decidi, então, reescrever o script anterior utilizando padrões funcionais
+e ver aonde isso me levaria.</p>
+</section>
+<section>
+<h2 id="reescrita">Reescrita</h2>
+<p>Vamos passar pela reescrita passo a passo.</p>
+<p>Primeiro, a função <code>sanitize</code> pode ser eliminada, pelo fato de que as variáveis
+<code>PART</code> e <code>BLOCKS</code> podem ser feitas imutáveis e há uma instrução <code>unset</code> para
+limpar as variáveis mutáveis necessárias:</p>
+<pre><code>local -r PART=$(df $(pwd) | tail -n 1 | awk '{print $1}' | head -c 8)
+local -r BLOCKS=$(ls /sys/block/ \
+  | grep -v 'ram\|loop' \
+  | filter lambda a . '[ &quot;/dev/$a&quot; != &quot;$PART&quot; ] &amp;&amp; ret true || ret false' \
+  | unlist \
+  | peek lambda a . echo 'Working on devices $a')
+...
+unset FIRST_INPUT SECOND_INPUT TO_TEST</code></pre>
+<p>Segundo, observe que a função <code>map</code> implementa a regra de filtragem que
+anteriormente era realizada por um loop imperativo na função <code>get_blocks</code>, e a
+função <code>unlist</code> transforma a lista resultante em um array, tornando a função
+<code>get_blocks</code> obsoleta.</p>
+<p>Terceiro, as linhas</p>
+<pre><code>echo -e &quot;\nThe following procedure will erase all data on the media&quot;
+echo &quot;of this machine. Type \&quot;yes\&quot; to proceed.&quot;
+read FIRST_INPUT
+echo &quot;THE PROCEDURE WILL ERASE ALL DATA ON THE MACHINE&quot;
+echo &quot;DO YOU REALLY WANT TO PROCEED?&quot;
+echo &quot;IF YES, TYPE \&quot;YES\&quot;&quot;
+read SECOND_INPUT
+
+if [ &quot;$FIRST_INPUT&quot; == &quot;yes&quot; ] &amp;&amp; [ &quot;$SECOND_INPUT&quot; == &quot;YES&quot; ];
+then
+...
+fi</code></pre>
+<p>podem ser simplificadas se omitirmos a segunda entrada, que é desnecessária,
+dado o aviso veemente.</p>
+<pre><code>echo -e &quot;\nThe following procedure will erase all data on the media of this machine.&quot;
+echo &quot;THE PROCEDURE WILL ERASE ALL DATA ON THE MACHINE.&quot;
+read -p &quot;Type \&quot;yes\&quot; to proceed. &quot; FIRST_INPUT
+...
+
+[ &quot;$FIRST_INPUT&quot; == &quot;yes&quot; ] \
+</code></pre>
+<p>Quarto, as linhas que fazem o trabalho podem ser tornadas mais declarativas,
+se designarmos 2 funções para realizar os efeitos imperativos, <code>zero</code> e <code>testit</code>.
+Em seguida, as passamos para o <code>map</code>
+<label for="composicao" class="margin-toggle sidenote-number">
+</label>
+<input type="checkbox" id="composicao" class="margin-toggle" />
+<span class="sidenote">
+Quase como compondo-as.
+</span>
+, que envolve o loop sobre os dispositivos.</p>
+<pre><code>zero() { 
+    echo -e &quot;\nWorking on block /dev/$1&quot; &amp;&amp; dd if=/dev/zero of=/dev/&quot;$1&quot; bs=5M oflag=direct
+}
+testit() {
+    echo -e &quot;\nTesting /dev/$1&quot; &amp;&amp; od /dev/&quot;$1&quot;
+}
+
+[ &quot;$FIRST_INPUT&quot; == &quot;yes&quot; ] \
+    &amp;&amp; list $(echo &quot;$BLOCKS&quot;) \
+    | map lambda a . 'zero $a ; sleep 2 &amp;&amp; testit $a' \
+    &amp;&amp; echo -e '\nTask completed'</code></pre>
+<p>Isso condensa a lógica na função <code>generate_commands</code>. A funcionalidade de teste
+é aqui reforçada, o que parece bom e também simplifica o script.</p>
+<p>O resultado final fica assim:</p>
+<pre><code>#!/bin/bash
+
+. ~/fun.sh
+
+main () {
+  local -r PART=$(df $(pwd) | tail -n 1 | awk '{print $1}' | head -c 8)
+  local -r BLOCKS=$(ls /sys/block/ \
+    | grep -v 'ram\|loop' \
+    | filter lambda a . '[ &quot;/dev/$a&quot; != &quot;$PART&quot; ] &amp;&amp; ret true || ret false' \
+    | unlist \
+    | peek lambda a . echo 'Working on devices $a')
+
+  echo -e &quot;\nThe following procedure will erase all data on the media of this machine.&quot;
+  echo &quot;THE PROCEDURE WILL ERASE ALL DATA ON THE MACHINE.&quot;
+  read -p &quot;Type \&quot;yes\&quot; to proceed. &quot; FIRST_INPUT
+
+  zero() { 
+    echo -e &quot;\nWorking on block /dev/$1&quot; &amp;&amp; dd if=/dev/zero of=/dev/&quot;$1&quot; bs=5M oflag=direct
+  }
+  testit() {
+    echo -e &quot;\nTesting /dev/$1&quot; &amp;&amp; od /dev/&quot;$1&quot;
+  }
+
+  [ &quot;$FIRST_INPUT&quot; == &quot;yes&quot; ] \
+    &amp;&amp; list $(echo &quot;$BLOCKS&quot;) \
+    | map lambda a . 'zero $a ; sleep 2 &amp;&amp; testit $a' \
+    &amp;&amp; echo -e '\nTask completed'
+
+  unset FIRST_INPUT SECOND_INPUT TO_TEST
+  main
+}
+
+main
+</code></pre>
+<p>Esta versão do script é bem pequena, muito expressiva, fácil de ler e evita
+confusão, embora seja bastante densa, devido à sintaxe exuberante do Bash.</p>
+<p>Mas ainda assim é encantadora. O significado do programa e a intenção do
+programador estão muito mais claros e são mais fáceis de entender.</p>
+<p>Suspeitei, por bastante tempo, que a Filosofia Unix e a programação funcional
+de alguma forma se complementam.</p>
+</section>
+
+            </article>
+        </div>
+    </body>
+</html>
