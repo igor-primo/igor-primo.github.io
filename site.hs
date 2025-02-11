@@ -19,7 +19,7 @@ main = hakyllWith config $ do
         route   idRoute
         compile copyFileCompiler
 
-    match ("training.html" .||. "training-goal.html") $ do
+    match ("training.html" .||. "training-goal.html" .||. "qualidade-dados.hmm.html") $ do
         route   idRoute
         compile copyFileCompiler
 
