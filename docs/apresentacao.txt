@@ -1,0 +1,33 @@
+. DataOps essencial
+. Desafios persistentes: ineficiência em
+  - integração de dados
+  - entregas
+  - governança
+. Revisão sistemática da literatura (2004 a 2024)
+  - identificar soluções relevantes e inovações
+. Valor de frameworks, metodologias
+. Framework pessoal com base nas pesquisas realizadas
+
+. Aumento exponencial de geração de dados -> Big Data
+. Impacto de Big Data em todos os setores.
+  - Produção diária de 2,5 quintilhões de bytes.
+  - Existência estimada de mais de 40 sextilhões de dados
+    (zettabytes)
+  - Estruturados, semi-estruturado, não-estruturados,
+    além de vídeos, imagens e áudios.
+. Bancos de dados relacionais e data warehouses
+  não tratam bem o alto volume de fluxo de dados
+. Exemplos de campos impactados, segundo literatura
+  - saúde
+  - predição de desastres naturais
+  - Experts argumentam que para melhor explorar
+    a utilidade de BD, é necessário utilizar tecnologias
+    escalávies e capazes de manusear datasets vastos.
+    - DevOps + adaptação para análise de dados
+      - Redução de tempo e esforço na aquisição de dados
+        - DataOps
+          - Integra pessoas, processos e tecnologias para
+            possibilitar o manuseio ágil e automatizado
+            dos dados.
+          - Colaboração, reduz silos de dados, facilita
+            tomada de decisão.
